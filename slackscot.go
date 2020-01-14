@@ -61,6 +61,9 @@ type Slackscot struct {
 
 	// Termination channel.
 	terminationCh chan bool
+
+	// A function to check if the help command should be run
+	helpPrefix Matcher
 }
 
 // Plugin represents a plugin (its name, action definitions and slackscot injected services)
@@ -292,6 +295,14 @@ func OptionTestMode(terminationCh chan bool) Option {
 	}
 }
 
+//OptionHelpPrefix overrides the default matching logic for when the run the help command. The help command will run
+//if this function returns true.
+func OptionHelpPrefix(prefixMatcher Matcher) Option {
+	return func(s *Slackscot) {
+		s.helpPrefix = prefixMatcher
+	}
+}
+
 // NewSlackscot creates a new slackscot from an array of plugins and a name
 //
 // Deprecated: Use New instead. Will be removed in 2.0.0
@@ -306,6 +317,10 @@ func New(name string, v *viper.Viper, options ...Option) (s *Slackscot, err erro
 	s.triggeringMsgToResponse, err = lru.NewARC(v.GetInt(config.ResponseCacheSizeKey))
 	if err != nil {
 		return nil, err
+	}
+
+	s.helpPrefix = func(m *IncomingMessage) bool {
+		return strings.HasPrefix(m.NormalizedText, "help")
 	}
 
 	s.name = name

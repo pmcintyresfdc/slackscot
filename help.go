@@ -40,9 +40,7 @@ func (s *Slackscot) newHelpPlugin(version string) *helpPlugin {
 	helpPlugin.pluginScheduledActions = scheduledActions
 
 	helpPlugin.Plugin = Plugin{Name: helpPluginName, Commands: []ActionDefinition{{
-		Match: func(m *IncomingMessage) bool {
-			return strings.HasPrefix(m.NormalizedText, "help")
-		},
+		Match:       s.helpPrefix,
 		Usage:       helpPluginName,
 		Description: "Reply with usage instructions",
 		Answer:      helpPlugin.showHelp,
