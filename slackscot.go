@@ -303,6 +303,12 @@ func OptionHelpPrefix(prefixMatcher Matcher) Option {
 	}
 }
 
+//OptionHelpPrefixDefault is the default function used for the help command matching logic. It can be overridden using
+//`OptionHelpPrefix`.
+func OptionHelpPrefixDefault(m *IncomingMessage) bool {
+	return strings.HasPrefix(m.NormalizedText, "help")
+}
+
 // NewSlackscot creates a new slackscot from an array of plugins and a name
 //
 // Deprecated: Use New instead. Will be removed in 2.0.0
@@ -319,9 +325,7 @@ func New(name string, v *viper.Viper, options ...Option) (s *Slackscot, err erro
 		return nil, err
 	}
 
-	s.helpPrefix = func(m *IncomingMessage) bool {
-		return strings.HasPrefix(m.NormalizedText, "help")
-	}
+	s.helpPrefix = OptionHelpPrefixDefault
 
 	s.name = name
 	s.config = v
