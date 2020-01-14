@@ -97,3 +97,51 @@ func TestHelpWithHiddenActions(t *testing.T) {
 
 	assert.Equal(t, "🤝 Hi, `Daniel Quinn`! I'm `robert` (engine `v1.0.0`) and I listen to the team's chat and provides automated functions :genie:.\n", a.Text)
 }
+
+func TestHelpWithHearAction(t *testing.T) {
+	s, err := New("robert", config.NewViperWithDefaults(),
+		OptionNoPluginNamespacing(),
+		OptionHelpPrefix(func(m *IncomingMessage) bool {
+			return strings.HasPrefix(m.NormalizedText, "!!helpbb")
+		}, false),
+	)
+	s.RegisterPlugin(newPluginWithActionsOfAllTypes(false))
+
+	require.NoError(t, err)
+
+	help := s.newHelpPlugin("1.0.0")
+	help.UserInfoFinder = &userInfoFinder{}
+
+	cmd := help.HearActions[0]
+	a := cmd.Answer(&IncomingMessage{NormalizedText: "!!helpbb"})
+	require.NotNil(t, a)
+
+	assert.Equal(t, "🤝 Hi, `Daniel Quinn`! I'm `robert` (engine `v1.0.0`) and I listen to the team's chat and provides automated functions :genie:.\n\n"+
+		"I currently support the following commands:\n\t• `<someone of something to thank>` - Format a thank you note\n\nAnd listen for the following:\n"+
+		"\t• `say `chickadee` and hear a chirp` - Chirp when hearing people talk about chickadees\n\nAnd do those things periodically:\n"+
+		"\t• [`thank`] `Every 30 seconds` (`Local`) - Sends a heartbeat every 30 seconds\n", a.Text)
+}
+
+func TestHelpWithCommand(t *testing.T) {
+	s, err := New("robert", config.NewViperWithDefaults(),
+		OptionNoPluginNamespacing(),
+		OptionHelpPrefix(func(m *IncomingMessage) bool {
+			return strings.HasPrefix(m.NormalizedText, "helpbb")
+		}, true),
+	)
+	s.RegisterPlugin(newPluginWithActionsOfAllTypes(false))
+
+	require.NoError(t, err)
+
+	help := s.newHelpPlugin("1.0.0")
+	help.UserInfoFinder = &userInfoFinder{}
+
+	cmd := help.Commands[0]
+	a := cmd.Answer(&IncomingMessage{NormalizedText: "helpbb"})
+	require.NotNil(t, a)
+
+	assert.Equal(t, "🤝 Hi, `Daniel Quinn`! I'm `robert` (engine `v1.0.0`) and I listen to the team's chat and provides automated functions :genie:.\n\n"+
+		"I currently support the following commands:\n\t• `<someone of something to thank>` - Format a thank you note\n\nAnd listen for the following:\n"+
+		"\t• `say `chickadee` and hear a chirp` - Chirp when hearing people talk about chickadees\n\nAnd do those things periodically:\n"+
+		"\t• [`thank`] `Every 30 seconds` (`Local`) - Sends a heartbeat every 30 seconds\n", a.Text)
+}
