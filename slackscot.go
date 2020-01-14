@@ -44,6 +44,9 @@ type Slackscot struct {
 	selfName       string
 	selfUserPrefix string
 
+	// Used to match if a message is a Command
+	prefixMatch Matcher
+
 	// Runtime configuration options
 	namespaceCommands bool
 
@@ -298,8 +301,16 @@ func OptionTestMode(terminationCh chan bool) Option {
 	}
 }
 
-//OptionHelpPrefix overrides the default matching logic for when the run the help command. The help command will run
-//if this function returns true.
+// OptionGlobalPrefix overrides the default matching logic for when commands are searched. If not defined then @botname
+// is used
+func OptionGlobalPrefix(prefixMatcher Matcher) Option {
+	return func(s *Slackscot) {
+		s.prefixMatch = prefixMatcher
+	}
+}
+
+// OptionHelpPrefix overrides the default matching logic for when the run the help command. The help command will run
+// if this function returns true.
 func OptionHelpPrefix(prefixMatcher Matcher, useCommand bool) Option {
 	return func(s *Slackscot) {
 		s.helpPrefix = prefixMatcher
@@ -307,8 +318,8 @@ func OptionHelpPrefix(prefixMatcher Matcher, useCommand bool) Option {
 	}
 }
 
-//OptionHelpPrefixDefault is the default function used for the help command matching logic. It can be overridden using
-//`OptionHelpPrefix`.
+// OptionHelpPrefixDefault is the default function used for the help command matching logic. It can be overridden using
+// `OptionHelpPrefix`.
 func OptionHelpPrefixDefault(m *IncomingMessage) bool {
 	return strings.HasPrefix(m.NormalizedText, "help")
 }
@@ -520,7 +531,14 @@ func (s *Slackscot) cacheSelfIdentity(selfInfoFinder selfInfoFinder, userInfoFin
 		return err
 	}
 	s.selfBotID = user.Profile.BotID
+
+	// Set the default prefix, if needed
 	s.selfUserPrefix = fmt.Sprintf("<@%s> ", s.selfID)
+	if s.prefixMatch == nil {
+		s.prefixMatch = func(m *IncomingMessage) bool {
+			return m.NormalizedText == s.selfUserPrefix
+		}
+	}
 
 	s.log.Debugf("Caching self id [%s], self name [%s], self bot ID [%s] and self prefix [%s]\n", s.selfID, s.selfName, s.selfBotID, s.selfUserPrefix)
 	return nil
@@ -833,7 +851,7 @@ func (s *Slackscot) routeMessage(me *slack.MessageEvent) (responses []*OutgoingM
 	}
 
 	// Try commands or hear actions depending on the format of the message
-	if isCommand, isDM := isCommand(m, s.selfUserPrefix); isCommand {
+	if isCommand, isDM := isCommandOrDM(m, s.prefixMatch); isCommand {
 		replyStrategy := reply
 		if isDM {
 			replyStrategy = directReply
@@ -899,18 +917,30 @@ func (s *Slackscot) newIncomingMsgWithNormalizedText(m *slack.Msg) (inMsg *Incom
 	inMsg = new(IncomingMessage)
 	inMsg.NormalizedText = m.Text
 	inMsg.Msg = *m
-	if isCommand, isDM := isCommand(m, s.selfUserPrefix); isCommand && !isDM {
+	if isCommand, isDM := isCommandOrDM(m, s.prefixMatch); isCommand && !isDM {
 		inMsg.NormalizedText = strings.TrimPrefix(m.Text, s.selfUserPrefix)
 	}
 
 	return inMsg
 }
 
+// isCommandOrDM returns true if the slack message is to be interpreted as a command rather than a normal message
+// subject to be handled by hear actions
+func isCommandOrDM(m *slack.Msg, selfUserPrefix Matcher) (isCmd bool, isDM bool) {
+	return isCommand(m, selfUserPrefix), isDirectMsg(m)
+}
+
 // isCommand returns true if the slack message is to be interpreted as a command rather than a normal message
 // subject to be handled by hear actions
-func isCommand(m *slack.Msg, selfUserPrefix string) (isCommand bool, isDirectMsg bool) {
-	isDirectMsg = strings.HasPrefix(m.Channel, "D")
-	return strings.HasPrefix(m.Text, selfUserPrefix) || isDirectMsg, isDirectMsg
+func isCommand(m *slack.Msg, selfUserPrefix Matcher) (isCommand bool) {
+	msg := IncomingMessage{m.Text, *m}
+	return selfUserPrefix(&msg) || isDirectMsg(m)
+}
+
+// isDirectMsg returns true if the slack message is to be interpreted as a command rather than a normal message
+// subject to be handled by hear actions
+func isDirectMsg(m *slack.Msg) (isDirectMsg bool) {
+	return strings.HasPrefix(m.Channel, "D")
 }
 
 // useExistingThreadIfAny sets the option on an Answer to reply in the existing thread if there is one
