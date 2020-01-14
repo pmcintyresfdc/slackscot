@@ -326,7 +326,6 @@ func New(name string, v *viper.Viper, options ...Option) (s *Slackscot, err erro
 	}
 
 	s.helpPrefix = OptionHelpPrefixDefault
-
 	s.name = name
 	s.config = v
 	s.namespaceCommands = true
