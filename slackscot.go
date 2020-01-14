@@ -64,6 +64,9 @@ type Slackscot struct {
 
 	// A function to check if the help command should be run
 	helpPrefix Matcher
+
+	// If true then helpPrefix is matched against a `Command`
+	helpIsCommand bool
 }
 
 // Plugin represents a plugin (its name, action definitions and slackscot injected services)
@@ -297,9 +300,10 @@ func OptionTestMode(terminationCh chan bool) Option {
 
 //OptionHelpPrefix overrides the default matching logic for when the run the help command. The help command will run
 //if this function returns true.
-func OptionHelpPrefix(prefixMatcher Matcher) Option {
+func OptionHelpPrefix(prefixMatcher Matcher, useCommand bool) Option {
 	return func(s *Slackscot) {
 		s.helpPrefix = prefixMatcher
+		s.helpIsCommand = useCommand
 	}
 }
 
@@ -326,6 +330,7 @@ func New(name string, v *viper.Viper, options ...Option) (s *Slackscot, err erro
 	}
 
 	s.helpPrefix = OptionHelpPrefixDefault
+	s.helpIsCommand = true
 	s.name = name
 	s.config = v
 	s.namespaceCommands = true

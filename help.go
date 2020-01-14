@@ -38,13 +38,20 @@ func (s *Slackscot) newHelpPlugin(version string) *helpPlugin {
 	helpPlugin.commands = commands
 	helpPlugin.hearActions = hearActions
 	helpPlugin.pluginScheduledActions = scheduledActions
-
-	helpPlugin.Plugin = Plugin{Name: helpPluginName, Commands: []ActionDefinition{{
+	helpPlugin.Plugin = Plugin{Name: helpPluginName}
+	baseAD := ActionDefinition{
 		Match:       s.helpPrefix,
 		Usage:       helpPluginName,
 		Description: "Reply with usage instructions",
 		Answer:      helpPlugin.showHelp,
-	}}, HearActions: nil}
+	}
+
+	// Manage what kind of Command/HearAction is used for matching based on `OptionHelpPrefix`
+	if s.helpIsCommand {
+		helpPlugin.Plugin.Commands = []ActionDefinition{baseAD}
+	} else {
+		helpPlugin.Plugin.HearActions = []ActionDefinition{baseAD}
+	}
 
 	return helpPlugin
 }
